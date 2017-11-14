@@ -11,4 +11,5 @@ public interface StaticData {
     String DSP_FREQ = "DSP_FREQ";
     String DSP_LEFT_TUNE="DSP_LEFT_TUNE";
     String DSP_RIGHT_TUNE="DSP_RIGHT_TUNE";
+    int VALID_DATA_LENGTH = 4;
 }
