@@ -1,6 +1,6 @@
 package com.skycaster.usbconnectorforwh.model;
 
-import com.skycaster.usbconnectorforwh.Utils.NumberFormatUtil;
+import com.skycaster.usbconnectorforwh.utils.NumberFormatUtil;
 import com.skycaster.usbconnectorforwh.data.StaticData;
 
 import java.util.concurrent.LinkedBlockingDeque;

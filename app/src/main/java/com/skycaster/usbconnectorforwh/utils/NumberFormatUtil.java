@@ -1,4 +1,4 @@
-package com.skycaster.usbconnectorforwh.Utils;
+package com.skycaster.usbconnectorforwh.utils;
 
 import java.math.BigDecimal;
 
