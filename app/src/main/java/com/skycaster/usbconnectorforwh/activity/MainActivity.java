@@ -1,5 +1,7 @@
 package com.skycaster.usbconnectorforwh.activity;
 
+import android.widget.ListView;
+
 import com.skycaster.usbconnectorforwh.R;
 import com.skycaster.usbconnectorforwh.base.MyCDRadioActivity;
 import com.skycaster.usbconnectorforwh.presenter.MainActivityPresenter;
@@ -7,6 +9,7 @@ import com.skycaster.usbconnectorforwh.presenter.MainActivityPresenter;
 public class MainActivity extends MyCDRadioActivity {
 
     private MainActivityPresenter mPresenter;
+    private ListView mListView;
 
     @Override
     protected int getContentView() {
@@ -15,7 +18,12 @@ public class MainActivity extends MyCDRadioActivity {
 
     @Override
     protected void initView() {
+        mListView=findViewById(R.id.main_list_view);
 
+    }
+
+    public ListView getListView() {
+        return mListView;
     }
 
     @Override

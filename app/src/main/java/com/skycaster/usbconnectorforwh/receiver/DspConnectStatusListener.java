@@ -10,10 +10,10 @@ import com.skycaster.usbconnectorforwh.data.StaticData;
  * Created by 廖华凯 on 2017/11/14.
  */
 
-public class DspConnectStateListener extends BroadcastReceiver {
-    private DspConnectStateListener.CallBack mCallBack;
+public class DspConnectStatusListener extends BroadcastReceiver {
+    private DspConnectStatusListener.CallBack mCallBack;
 
-    public DspConnectStateListener(CallBack callBack) {
+    public DspConnectStatusListener(CallBack callBack) {
         mCallBack = callBack;
     }
 

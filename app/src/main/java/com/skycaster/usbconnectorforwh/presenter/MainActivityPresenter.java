@@ -6,18 +6,21 @@ import android.content.SharedPreferences;
 import android.os.Handler;
 import android.text.TextUtils;
 import android.util.Log;
+import android.widget.ArrayAdapter;
 
 import com.skycaster.skc_cdradiorx.abstr.BusinessDataListener;
 import com.skycaster.skc_cdradiorx.manager.DSPManager;
 import com.skycaster.usbconnectorforwh.activity.MainActivity;
 import com.skycaster.usbconnectorforwh.data.StaticData;
 import com.skycaster.usbconnectorforwh.model.DspModel;
+import com.skycaster.usbconnectorforwh.model.PortCommandDecipher;
 import com.skycaster.usbconnectorforwh.model.SerialPortModel;
-import com.skycaster.usbconnectorforwh.receiver.DspConnectStateListener;
+import com.skycaster.usbconnectorforwh.receiver.DspConnectStatusListener;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.ArrayList;
 
 import project.SerialPort.SerialPort;
 
@@ -27,7 +30,7 @@ import project.SerialPort.SerialPort;
 
 public class MainActivityPresenter {
     private MainActivity mActivity;
-    private DspConnectStateListener mReceiver;
+    private DspConnectStatusListener mReceiver;
     private DspModel mDspModel;
     private SerialPortModel mSerialPortModel;
     private InputStream mInputStream;
@@ -36,7 +39,7 @@ public class MainActivityPresenter {
     private Handler mHandler;
     private Thread mThread;
     private byte[] temp=new byte[256];
-    private DspConnectStateListener.CallBack mCallBack=new DspConnectStateListener.CallBack() {
+    private DspConnectStatusListener.CallBack mDspConnectStatusCallBack =new DspConnectStatusListener.CallBack() {
         @Override
         public void onDspConnect() {
             showLog("DSP连接成功！");
@@ -48,9 +51,6 @@ public class MainActivityPresenter {
         }
     };
     private SharedPreferences mSharedPreferences;
-    private double mFreq;
-    private int mLeftTune;
-    private int mRightTune;
     private BusinessDataListener mBusinessDataListener=new BusinessDataListener() {
         @Override
         public void preTask() {
@@ -67,11 +67,41 @@ public class MainActivityPresenter {
             showLog("业务数据停止了。");
         }
     };
+    private PortCommandDecipher mCommandDecipher;
+    private PortCommandDecipher.CallBack mDecipherCallBack =new PortCommandDecipher.CallBack() {
+        @Override
+        public void onRequestResetParams(final double freq, final int leftTune, final int rightTune) {
+
+            mDspModel.resetDsp(freq, leftTune, rightTune, mActivity, mBusinessDataListener, new DspModel.CallBack() {
+                @Override
+                public void onResetComplete() {
+                    SharedPreferences.Editor editor = mSharedPreferences.edit();
+                    editor.putString(StaticData.DSP_FREQ,String.valueOf(freq));
+                    editor.putInt(StaticData.DSP_LEFT_TUNE,leftTune);
+                    editor.putInt(StaticData.DSP_RIGHT_TUNE,rightTune);
+                    editor.apply();
+                    showLog("参数设置成功，新的主频："+freq+" 新的左频："+leftTune+" 新的右频："+rightTune);
+                }
+
+                @Override
+                public void onResetFails(String msg) {
+                    showLog("参数设置失败，原因："+msg);
+                }
+            });
+        }
+
+        @Override
+        public void onDspParamsInvalid(String msg) {
+            showLog("参数设置失败，原因："+msg);
+        }
+    };
+    private ArrayAdapter<String> mAdapter;
+    private ArrayList<String> mLogs=new ArrayList<>();
 
 
 
 
-
+/*******************************************************开始运行********************************************************/
 
     public MainActivityPresenter(MainActivity activity) {
         mActivity = activity;
@@ -81,21 +111,33 @@ public class MainActivityPresenter {
         mDspModel=new DspModel();
         mSerialPortModel=new SerialPortModel();
         mHandler=new Handler(mActivity.getMainLooper());
+        mCommandDecipher=new PortCommandDecipher(mDecipherCallBack);
 
+        //初始化主页面list view
+        mAdapter=new ArrayAdapter<String>(
+                mActivity,
+                android.R.layout.simple_list_item_1,
+                mLogs
+        );
+        mActivity.getListView().setAdapter(mAdapter);
+
+        //读取上次的启动参数
         mSharedPreferences=mActivity.getSharedPreferences(StaticData.SP_NAME, Context.MODE_PRIVATE);
-        mFreq=Double.valueOf(mSharedPreferences.getString(StaticData.DSP_FREQ,"98"));
-        mLeftTune=mSharedPreferences.getInt(StaticData.DSP_LEFT_TUNE,36);
-        mRightTune=mSharedPreferences.getInt(StaticData.DSP_RIGHT_TUNE,45);
+        double freq = Double.valueOf(mSharedPreferences.getString(StaticData.DSP_FREQ, StaticData.DEFAULT_FREQ_VALUE));
+        int leftTune = mSharedPreferences.getInt(StaticData.DSP_LEFT_TUNE, StaticData.DEFAULT_LEFT_TUNE_VALUE);
+        int rightTune = mSharedPreferences.getInt(StaticData.DSP_RIGHT_TUNE, StaticData.DEFAULT_RIGHT_TUNE_VALUE);
 
+        //利用上次的参数启动dsp
         try {
-            mDspModel.openDsp(mFreq,mLeftTune,mRightTune);
-            mDspModel.startReceivingData(mActivity,getBizDataListener());
+            mDspModel.openDsp(freq, leftTune, rightTune);
+            mDspModel.startReceivingData(mActivity,mBusinessDataListener);
         } catch (DSPManager.FreqOutOfRangeException e) {
             handleException(e);
         }
 
+        //打开串口到用户电脑端
         try {
-            mSerialPort = mSerialPortModel.openSerialPort("/dev/ttyS0", 115200);
+            mSerialPort = mSerialPortModel.openSerialPort(StaticData.SERIAL_PORT_PATH, StaticData.SERIAL_PORT_BAUD_RATE);
             mInputStream= mSerialPort.getInputStream();
             mOutputStream=mSerialPort.getOutputStream();
             startReceivingPortData();
@@ -104,9 +146,6 @@ public class MainActivityPresenter {
         }
     }
 
-    private BusinessDataListener getBizDataListener() {
-        return mBusinessDataListener;
-    }
 
     private void startReceivingPortData() {
 
@@ -120,9 +159,9 @@ public class MainActivityPresenter {
                                 break;
                             }
                             int len = mInputStream.read(temp);
-                            //// TODO: 2017/11/14 按照协议解析
+                            mCommandDecipher.extractValidData(temp,len);
                         }
-                    } catch (IOException e) {
+                    } catch (Exception e) {
                         handleException(e);
                         break;
                     }
@@ -145,14 +184,9 @@ public class MainActivityPresenter {
 
     private void registerReceivers() {
         IntentFilter filter=new IntentFilter(StaticData.ACTION_DECTECT_DSP_STATUS);
-        mReceiver = new DspConnectStateListener(getDspStatusListener());
+        mReceiver = new DspConnectStatusListener(mDspConnectStatusCallBack);
         mActivity.registerReceiver(mReceiver,filter);
     }
-
-    private DspConnectStateListener.CallBack getDspStatusListener() {
-        return mCallBack;
-    }
-
 
     public void onStop() {
         unregisterReceivers();
@@ -183,6 +217,7 @@ public class MainActivityPresenter {
     private void showLog(String msg){
         Log.e(getClass().getSimpleName(),msg);
         sendMessageToSerialPort(msg.getBytes());
+        updateListView(msg);
     }
 
     private void sendMessageToSerialPort(final byte[] msg){
@@ -197,6 +232,21 @@ public class MainActivityPresenter {
                         e1.printStackTrace();
                     }
                 }
+            }
+        });
+    }
+
+    private void updateListView(final String msg){
+        mHandler.post(new Runnable() {
+            @Override
+            public void run() {
+                int size = mLogs.size();
+                if(size>=50){
+                    mLogs.remove(0);
+                }
+                mLogs.add(msg);
+                mAdapter.notifyDataSetChanged();
+                mActivity.getListView().smoothScrollToPosition(Integer.MAX_VALUE);
             }
         });
     }
