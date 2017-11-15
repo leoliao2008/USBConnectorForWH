@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
+import java.util.Locale;
 
 import project.SerialPort.SerialPort;
 
@@ -58,8 +59,20 @@ public class MainActivityPresenter {
         }
 
         @Override
-        public void onGetBizData(byte[] bytes) {
-            showLog(new String(bytes));
+        public void onGetBizData(final byte[] bytes) {
+            mHandler.post(new Runnable() {
+                @Override
+                public void run() {
+                    StringBuffer sb=new StringBuffer();
+                    sb.append("裸数据：");
+                    for(byte temp:bytes){
+                        sb.append("0x");
+                        sb.append(String.format(Locale.CHINA,"%02X",temp));
+                        sb.append(" ");
+                    }
+                    showLog(sb.toString().trim());
+                }
+            });
         }
 
         @Override
@@ -168,6 +181,7 @@ public class MainActivityPresenter {
                 }
             }
         });
+        mThread.setPriority(Thread.MAX_PRIORITY);
         mThread.start();
     }
 
@@ -183,7 +197,7 @@ public class MainActivityPresenter {
     }
 
     private void registerReceivers() {
-        IntentFilter filter=new IntentFilter(StaticData.ACTION_DECTECT_DSP_STATUS);
+        IntentFilter filter=new IntentFilter(StaticData.ACTION_DETECT_DSP_STATUS);
         mReceiver = new DspConnectStatusListener(mDspConnectStatusCallBack);
         mActivity.registerReceiver(mReceiver,filter);
     }
