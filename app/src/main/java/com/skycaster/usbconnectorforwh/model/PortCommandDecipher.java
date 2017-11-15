@@ -1,6 +1,6 @@
 package com.skycaster.usbconnectorforwh.model;
 
-import com.skycaster.usbconnectorforwh.utils.NumberFormatUtil;
+import com.skycaster.usbconnectorforwh.utils.NumberFormatter;
 import com.skycaster.usbconnectorforwh.data.StaticData;
 
 import java.util.concurrent.LinkedBlockingDeque;
@@ -87,7 +87,7 @@ public class PortCommandDecipher {
                 int leftTune=0xff&dest[3];
                 int rightTune=0xff&dest[4];
                 try {
-                    double freq = NumberFormatUtil.getDouble(i, j);
+                    double freq = NumberFormatter.getDouble(i,j,2);
                     mCallBack.onRequestResetParams(freq,leftTune,rightTune);
                 }catch (NumberFormatException e){
                     mCallBack.onDspParamsInvalid(e.getMessage());
