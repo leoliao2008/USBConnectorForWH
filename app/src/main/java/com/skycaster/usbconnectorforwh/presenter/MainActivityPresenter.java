@@ -80,12 +80,17 @@ public class MainActivityPresenter {
             showLog("业务数据停止了。");
         }
     };
-    private PortCommandDecipher mCommandDecipher;
+    private PortCommandDecipher mDecipher;
     private PortCommandDecipher.CallBack mDecipherCallBack =new PortCommandDecipher.CallBack() {
         @Override
-        public void onRequestResetParams(final double freq, final int leftTune, final int rightTune) {
+        public void onRequestResetDspParams(final double freq, final int leftTune, final int rightTune) {
 
             mDspModel.resetDsp(freq, leftTune, rightTune, mActivity, mBusinessDataListener, new DspModel.CallBack() {
+                @Override
+                public void onProcessing(String info) {
+                    showLog(info);
+                }
+
                 @Override
                 public void onResetComplete() {
                     SharedPreferences.Editor editor = mSharedPreferences.edit();
@@ -104,7 +109,7 @@ public class MainActivityPresenter {
         }
 
         @Override
-        public void onDspParamsInvalid(String msg) {
+        public void onInvalidDspParamsInput(String msg) {
             showLog("参数设置失败，原因："+msg);
         }
     };
@@ -124,7 +129,7 @@ public class MainActivityPresenter {
         mDspModel=new DspModel();
         mSerialPortModel=new SerialPortModel();
         mHandler=new Handler(mActivity.getMainLooper());
-        mCommandDecipher=new PortCommandDecipher(mDecipherCallBack);
+        mDecipher =new PortCommandDecipher(mDecipherCallBack);
 
         //初始化主页面list view
         mAdapter=new ArrayAdapter<String>(
@@ -172,7 +177,7 @@ public class MainActivityPresenter {
                                 break;
                             }
                             int len = mInputStream.read(temp);
-                            mCommandDecipher.extractValidData(temp,len);
+                            mDecipher.decipher(temp,len);
                         }
                     } catch (Exception e) {
                         handleException(e);
@@ -206,6 +211,7 @@ public class MainActivityPresenter {
         unregisterReceivers();
         if(mActivity.isFinishing()){
             stopReceivingPortData();
+            mDecipher.clearTasks();
             if(mSerialPort!=null){
                 mSerialPortModel.closeSerialPort(mSerialPort);
                 mSerialPort=null;

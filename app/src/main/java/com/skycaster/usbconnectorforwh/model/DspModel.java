@@ -43,13 +43,22 @@ public class DspModel {
         new Thread(new Runnable() {
             @Override
             public void run() {
-                stopReceivingData();
+
+                if(stopReceivingData()){
+                    callBack.onProcessing("已关闭裸数据传输");
+                }else {
+                    callBack.onProcessing("关闭裸数据传输失败");
+                }
                 try {
                     Thread.sleep(500);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                 }
-                closeDsp();
+                if(closeDsp()){
+                    callBack.onProcessing("已关闭DSP");
+                }else {
+                    callBack.onProcessing("DSP关闭失败");
+                }
                 try {
                     Thread.sleep(500);
                 } catch (InterruptedException e) {
@@ -57,19 +66,21 @@ public class DspModel {
                 }
                 try {
                     if(openDsp(freq,leftTune,rightTune)){
+                        callBack.onProcessing("用新配置参数重启DSP成功");
                         try {
                             Thread.sleep(500);
                         } catch (InterruptedException e) {
                             e.printStackTrace();
                         }
                         boolean isSuccess = startReceivingData(context, listener);
+                        callBack.onProcessing("重新启动业务数据传输...");
                         if(isSuccess){
                             callBack.onResetComplete();
                         }else {
                             callBack.onResetFails("无法启动业务传输，请检查DSP连接。");
                         }
                     }else {
-                        callBack.onResetFails("DSP 参数设置失败 主频："+freq+" 左频："+leftTune+" 右频："+rightTune);
+                        callBack.onResetFails("DSP启动失败 配置参数：主频："+freq+" 左频："+leftTune+" 右频："+rightTune);
                     }
                 } catch (DSPManager.FreqOutOfRangeException e) {
                     callBack.onResetFails(e.getMessage());
@@ -79,8 +90,8 @@ public class DspModel {
     }
 
     public interface CallBack{
+        void onProcessing(String info);
         void onResetComplete();
-
         void onResetFails(String msg);
     }
 }

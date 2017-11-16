@@ -1,7 +1,7 @@
 package com.skycaster.usbconnectorforwh.model;
 
-import com.skycaster.usbconnectorforwh.utils.NumberFormatter;
 import com.skycaster.usbconnectorforwh.data.StaticData;
+import com.skycaster.usbconnectorforwh.utils.NumberFormatter;
 
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -44,7 +44,7 @@ public class PortCommandDecipher {
         };
     }
 
-    public void extractValidData(byte[] input, int len){
+    public void decipher(byte[] input, int len){
         for (int i=0;i<len;i++){
             //先确定指令开始的信号
             if(!isRequestConfirm){
@@ -88,9 +88,9 @@ public class PortCommandDecipher {
                 int rightTune=0xff&dest[4];
                 try {
                     double freq = NumberFormatter.getDouble(i,j,2);
-                    mCallBack.onRequestResetParams(freq,leftTune,rightTune);
+                    mCallBack.onRequestResetDspParams(freq,leftTune,rightTune);
                 }catch (NumberFormatException e){
-                    mCallBack.onDspParamsInvalid(e.getMessage());
+                    mCallBack.onInvalidDspParamsInput(e.getMessage());
                 }
                 break;
             default:
@@ -98,9 +98,13 @@ public class PortCommandDecipher {
         }
     }
 
-    public interface CallBack{
-        void onRequestResetParams(double freq,int leftTune,int rightTune);
+    public boolean clearTasks(){
+        return mThreadPoolExecutor.remove(mRunnableDecipher);
+    }
 
-        void onDspParamsInvalid(String msg);
+    public interface CallBack{
+        void onRequestResetDspParams(double freq, int leftTune, int rightTune);
+
+        void onInvalidDspParamsInput(String msg);
     }
 }
