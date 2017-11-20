@@ -1,11 +1,38 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout
+<LinearLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:orientation="vertical"
     tools:context="com.skycaster.usbconnectorforwh.activity.MainActivity">
+    <Button
+        android:onClick="openDsp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="启动DSP（沿用旧参数）"/>
+    <Button
+        android:onClick="resetDsp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="启动DSP（设置新参数）"/>
+    <Button
+        android:onClick="startBizService"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="开始业务传输"/>
+    <Button
+        android:onClick="stopBizService"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="停止业务传输"/>
+
+    <Button
+        android:onClick="closeDsp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="停止DSP"/>
 
     <ListView
         android:id="@+id/main_list_view"
@@ -13,4 +40,4 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"/>
 
-</FrameLayout>
+</LinearLayout>

@@ -16,6 +16,7 @@ import com.skycaster.usbconnectorforwh.model.DspModel;
 import com.skycaster.usbconnectorforwh.model.PortCommandDecipher;
 import com.skycaster.usbconnectorforwh.model.SerialPortModel;
 import com.skycaster.usbconnectorforwh.receiver.DspConnectStatusListener;
+import com.skycaster.usbconnectorforwh.utils.AlertDialogUtil;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -84,28 +85,7 @@ public class MainActivityPresenter {
     private PortCommandDecipher.CallBack mDecipherCallBack =new PortCommandDecipher.CallBack() {
         @Override
         public void onRequestResetDspParams(final double freq, final int leftTune, final int rightTune) {
-
-            mDspModel.resetDsp(freq, leftTune, rightTune, mActivity, mBusinessDataListener, new DspModel.CallBack() {
-                @Override
-                public void onProcessing(String info) {
-                    showLog(info);
-                }
-
-                @Override
-                public void onResetComplete() {
-                    SharedPreferences.Editor editor = mSharedPreferences.edit();
-                    editor.putString(StaticData.DSP_FREQ,String.valueOf(freq));
-                    editor.putInt(StaticData.DSP_LEFT_TUNE,leftTune);
-                    editor.putInt(StaticData.DSP_RIGHT_TUNE,rightTune);
-                    editor.apply();
-                    showLog("参数设置成功，新的主频："+freq+" 新的左频："+leftTune+" 新的右频："+rightTune);
-                }
-
-                @Override
-                public void onResetFails(String msg) {
-                    showLog("参数设置失败，原因："+msg);
-                }
-            });
+            openDspWithNewParams(freq,leftTune,rightTune);
         }
 
         @Override
@@ -117,9 +97,7 @@ public class MainActivityPresenter {
     private ArrayList<String> mLogs=new ArrayList<>();
 
 
-
-
-/*******************************************************开始运行********************************************************/
+    /*******************************************************开始运行********************************************************/
 
     public MainActivityPresenter(MainActivity activity) {
         mActivity = activity;
@@ -130,6 +108,7 @@ public class MainActivityPresenter {
         mSerialPortModel=new SerialPortModel();
         mHandler=new Handler(mActivity.getMainLooper());
         mDecipher =new PortCommandDecipher(mDecipherCallBack);
+        mSharedPreferences=mActivity.getSharedPreferences(StaticData.SP_NAME, Context.MODE_PRIVATE);
 
         //初始化主页面list view
         mAdapter=new ArrayAdapter<String>(
@@ -138,20 +117,6 @@ public class MainActivityPresenter {
                 mLogs
         );
         mActivity.getListView().setAdapter(mAdapter);
-
-        //读取上次的启动参数
-        mSharedPreferences=mActivity.getSharedPreferences(StaticData.SP_NAME, Context.MODE_PRIVATE);
-        double freq = Double.valueOf(mSharedPreferences.getString(StaticData.DSP_FREQ, StaticData.DEFAULT_FREQ_VALUE));
-        int leftTune = mSharedPreferences.getInt(StaticData.DSP_LEFT_TUNE, StaticData.DEFAULT_LEFT_TUNE_VALUE);
-        int rightTune = mSharedPreferences.getInt(StaticData.DSP_RIGHT_TUNE, StaticData.DEFAULT_RIGHT_TUNE_VALUE);
-
-        //利用上次的参数启动dsp
-        try {
-            mDspModel.openDsp(freq, leftTune, rightTune);
-            mDspModel.startReceivingData(mActivity,mBusinessDataListener);
-        } catch (DSPManager.FreqOutOfRangeException e) {
-            handleException(e);
-        }
 
         //打开串口到用户电脑端
         try {
@@ -162,6 +127,78 @@ public class MainActivityPresenter {
         } catch (Exception e) {
             handleException(e);
         }
+
+        //启动业务数据传输
+        openDspWithPreviousParams();
+    }
+
+
+    public void openDspWithPreviousParams(){
+        try {
+            boolean isDspOpen = mDspModel.openDsp(
+                    Double.valueOf(mSharedPreferences.getString(StaticData.DSP_FREQ, StaticData.DEFAULT_FREQ_VALUE)),
+                    mSharedPreferences.getInt(StaticData.DSP_LEFT_TUNE, StaticData.DEFAULT_LEFT_TUNE_VALUE),
+                    mSharedPreferences.getInt(StaticData.DSP_RIGHT_TUNE, StaticData.DEFAULT_RIGHT_TUNE_VALUE)
+            );
+            mHandler.postDelayed(new Runnable() {
+                @Override
+                public void run() {
+                    mDspModel.startReceivingData(mActivity,mBusinessDataListener);
+                }
+            },1000);
+        } catch (DSPManager.FreqOutOfRangeException e) {
+            handleException(e);
+        }
+
+    }
+
+    private void openDspWithNewParams(final double freq, final int leftTune, final int rightTune){
+        mDspModel.resetDsp(freq, leftTune, rightTune, mActivity, mBusinessDataListener, new DspModel.CallBack() {
+            @Override
+            public void onProcessing(String info) {
+                showLog(info);
+            }
+
+            @Override
+            public void onResetComplete() {
+                SharedPreferences.Editor editor = mSharedPreferences.edit();
+                editor.putString(StaticData.DSP_FREQ,String.valueOf(freq));
+                editor.putInt(StaticData.DSP_LEFT_TUNE,leftTune);
+                editor.putInt(StaticData.DSP_RIGHT_TUNE,rightTune);
+                editor.apply();
+                showLog("参数设置成功，新的主频："+freq+" 新的左频："+leftTune+" 新的右频："+rightTune);
+            }
+
+            @Override
+            public void onResetFails(String msg) {
+                showLog("参数设置失败，原因："+msg);
+            }
+        });
+    }
+
+
+
+    public void displayResetDspDialog() {
+        AlertDialogUtil.showResetDspParamsDialog(
+                mActivity,
+                Double.valueOf(mSharedPreferences.getString(StaticData.DSP_FREQ, StaticData.DEFAULT_FREQ_VALUE)),
+                mSharedPreferences.getInt(StaticData.DSP_LEFT_TUNE, StaticData.DEFAULT_LEFT_TUNE_VALUE),
+                mSharedPreferences.getInt(StaticData.DSP_RIGHT_TUNE, StaticData.DEFAULT_RIGHT_TUNE_VALUE),
+                new AlertDialogUtil.InputDspParamListener() {
+                    @Override
+                    public void onInputDspParamsConfirm(final Double freq, final Integer leftTune, final Integer rightTune) {
+                        openDspWithNewParams(freq,leftTune,rightTune);
+                    }
+                }
+        );
+    }
+
+    public boolean closeDsp(){
+        return mDspModel.closeDsp();
+    }
+
+    public boolean startBizDataService(){
+        return mDspModel.startReceivingData(mActivity,mBusinessDataListener);
     }
 
 
@@ -210,6 +247,8 @@ public class MainActivityPresenter {
     public void onStop() {
         unregisterReceivers();
         if(mActivity.isFinishing()){
+            stopBizDataService();
+            closeDsp();
             stopReceivingPortData();
             mDecipher.clearTasks();
             if(mSerialPort!=null){
@@ -269,5 +308,9 @@ public class MainActivityPresenter {
                 mActivity.getListView().smoothScrollToPosition(Integer.MAX_VALUE);
             }
         });
+    }
+
+    public boolean stopBizDataService() {
+        return mDspModel.stopReceivingData();
     }
 }
