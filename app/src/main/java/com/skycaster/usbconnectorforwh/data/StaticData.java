@@ -12,7 +12,7 @@ public interface StaticData {
     String DSP_LEFT_TUNE="DSP_LEFT_TUNE";
     String DSP_RIGHT_TUNE="DSP_RIGHT_TUNE";
     int VALID_DATA_LENGTH = 5;
-    String SERIAL_PORT_PATH="/dev/ttyS1";
+    String SERIAL_PORT_PATH="/dev/ttyAMA0";
     int SERIAL_PORT_BAUD_RATE =115200;
     String DEFAULT_FREQ_VALUE = "98";
     int DEFAULT_LEFT_TUNE_VALUE=36;

@@ -44,19 +44,19 @@ public class MainActivityPresenter {
     private DspConnectStatusListener.CallBack mDspConnectStatusCallBack =new DspConnectStatusListener.CallBack() {
         @Override
         public void onDspConnect() {
-            showLog("DSP连接成功！");
+            showLog("DSP Connection established!");
         }
 
         @Override
         public void onDspDisconnect() {
-            showLog("DSP连接中断了！");
+            showLog("DSP Disconnected!");
         }
     };
     private SharedPreferences mSharedPreferences;
     private BusinessDataListener mBusinessDataListener=new BusinessDataListener() {
         @Override
         public void preTask() {
-            showLog("业务数据正在启动...");
+            showLog("Initializing Biz Data Transferring...");
         }
 
         @Override
@@ -65,7 +65,7 @@ public class MainActivityPresenter {
                 @Override
                 public void run() {
                     StringBuffer sb=new StringBuffer();
-                    sb.append("裸数据：");
+                    sb.append("Biz Data:");
                     for(byte temp:bytes){
                         sb.append("0x");
                         sb.append(String.format(Locale.CHINA,"%02X",temp));
@@ -78,7 +78,7 @@ public class MainActivityPresenter {
 
         @Override
         public void onServiceStop() {
-            showLog("业务数据停止了。");
+            showLog("Biz Data Transferring Terminated.");
         }
     };
     private PortCommandDecipher mDecipher;
@@ -90,7 +90,7 @@ public class MainActivityPresenter {
 
         @Override
         public void onInvalidDspParamsInput(String msg) {
-            showLog("参数设置失败，原因："+msg);
+            showLog("Reset Dsp Params fails ："+msg);
         }
     };
     private ArrayAdapter<String> mAdapter;
@@ -135,11 +135,19 @@ public class MainActivityPresenter {
 
     public void openDspWithPreviousParams(){
         try {
+            Double freq = Double.valueOf(mSharedPreferences.getString(StaticData.DSP_FREQ, StaticData.DEFAULT_FREQ_VALUE));
+            int leftTune = mSharedPreferences.getInt(StaticData.DSP_LEFT_TUNE, StaticData.DEFAULT_LEFT_TUNE_VALUE);
+            int rightTune = mSharedPreferences.getInt(StaticData.DSP_RIGHT_TUNE, StaticData.DEFAULT_RIGHT_TUNE_VALUE);
             boolean isDspOpen = mDspModel.openDsp(
-                    Double.valueOf(mSharedPreferences.getString(StaticData.DSP_FREQ, StaticData.DEFAULT_FREQ_VALUE)),
-                    mSharedPreferences.getInt(StaticData.DSP_LEFT_TUNE, StaticData.DEFAULT_LEFT_TUNE_VALUE),
-                    mSharedPreferences.getInt(StaticData.DSP_RIGHT_TUNE, StaticData.DEFAULT_RIGHT_TUNE_VALUE)
+                    freq,
+                    leftTune,
+                    rightTune
             );
+            if(isDspOpen){
+                showLog("Dsp Open Success! Freq is "+freq+" left tune is "+leftTune+" right tune is "+rightTune);
+            }else {
+                showLog("Fail to Open Dsp.");
+            }
             mHandler.postDelayed(new Runnable() {
                 @Override
                 public void run() {
@@ -153,27 +161,43 @@ public class MainActivityPresenter {
     }
 
     private void openDspWithNewParams(final double freq, final int leftTune, final int rightTune){
-        mDspModel.resetDsp(freq, leftTune, rightTune, mActivity, mBusinessDataListener, new DspModel.CallBack() {
-            @Override
-            public void onProcessing(String info) {
-                showLog(info);
-            }
-
-            @Override
-            public void onResetComplete() {
-                SharedPreferences.Editor editor = mSharedPreferences.edit();
-                editor.putString(StaticData.DSP_FREQ,String.valueOf(freq));
-                editor.putInt(StaticData.DSP_LEFT_TUNE,leftTune);
-                editor.putInt(StaticData.DSP_RIGHT_TUNE,rightTune);
-                editor.apply();
-                showLog("参数设置成功，新的主频："+freq+" 新的左频："+leftTune+" 新的右频："+rightTune);
-            }
-
-            @Override
-            public void onResetFails(String msg) {
-                showLog("参数设置失败，原因："+msg);
-            }
-        });
+        SharedPreferences.Editor editor = mSharedPreferences.edit();
+        editor.putString(StaticData.DSP_FREQ,String.valueOf(freq));
+        editor.putInt(StaticData.DSP_LEFT_TUNE,leftTune);
+        editor.putInt(StaticData.DSP_RIGHT_TUNE,rightTune);
+        editor.apply();
+        showLog("new freq is "+freq+" new left tune is "+leftTune+" new right tune is "+rightTune+" , please restart your device!");
+//        mDspModel.resetDsp(freq, leftTune, rightTune, mActivity, mBusinessDataListener, new DspModel.CallBack() {
+//            @Override
+//            public void onProcessing(String info) {
+//                showLog(info);
+//            }
+//
+//            @Override
+//            public void onSetParamsSuccess(String msg) {
+//                showLog("Reset Dsp Params Success,new freq is "+freq+" new left tune is "+leftTune+" new right tune is "+rightTune);
+//                SharedPreferences.Editor editor = mSharedPreferences.edit();
+//                editor.putString(StaticData.DSP_FREQ,String.valueOf(freq));
+//                editor.putInt(StaticData.DSP_LEFT_TUNE,leftTune);
+//                editor.putInt(StaticData.DSP_RIGHT_TUNE,rightTune);
+//                editor.apply();
+//            }
+//
+//            @Override
+//            public void onRestartingBizServiceSuccess() {
+//                showLog("Restarting Biz Data Transferring Success! New freq is "+freq+" new left tune is "+leftTune+" new right tune is "+rightTune);
+//            }
+//
+//            @Override
+//            public void onRestartBizServiceFails(String msg) {
+//                showLog("Restart Biz Data Transferring Fails. Try to restart the device, Perhaps?");
+//            }
+//
+//            @Override
+//            public void onResetFails(String msg) {
+//                showLog("Reset Dsp Params fails ："+msg);
+//            }
+//        });
     }
 
 
@@ -286,6 +310,7 @@ public class MainActivityPresenter {
                 if(mOutputStream!=null){
                     try {
                         mOutputStream.write(msg);
+                        mOutputStream.write("\r\n".getBytes());
                         mOutputStream.flush();
                     } catch (IOException e1) {
                         e1.printStackTrace();

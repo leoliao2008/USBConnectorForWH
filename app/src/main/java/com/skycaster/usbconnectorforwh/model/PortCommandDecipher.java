@@ -1,5 +1,7 @@
 package com.skycaster.usbconnectorforwh.model;
 
+import android.util.Log;
+
 import com.skycaster.usbconnectorforwh.data.StaticData;
 import com.skycaster.usbconnectorforwh.utils.NumberFormatter;
 
@@ -46,9 +48,12 @@ public class PortCommandDecipher {
 
     public void decipher(byte[] input, int len){
         for (int i=0;i<len;i++){
+//            String format = String.format(Locale.CHINA, "%02x", input[i]);
+//            showLog("0x"+format);
             //先确定指令开始的信号
             if(!isRequestConfirm){
-                if(input[i]==0xff){
+//                showLog("request confirming...");
+                if(input[i]==((byte) 0xff)){
                     ffCount++;
                 }else {
                     ffCount=0;
@@ -58,28 +63,31 @@ public class PortCommandDecipher {
                     ffCount=0;
                     isRequestConfirm=true;
                     index=0;
+//                    showLog("confirm request.");
                 }
             }else {
                 //串口协议的指令起始位置有10个0xff，在这里把其他的0xff忽略掉
-                if(index==0&&input[i]==0xff){
+                if(index==0&&input[i]==((byte) 0xff)){
                     continue;
                 }
                 //把指令核心部分的5个字节依次转到临时容器里
                 temp[index]=input[i];
-                index++;
                 //5个字节过后，重新回到最初的接收状态
-                if(index==5){
+                if(index==4){
                     isRequestConfirm=false;
                     ffCount=0;
                     //把5个核心字节扔到线程池中解析，回头接收其他指令。
                     mThreadPoolExecutor.execute(mRunnableDecipher);
+//                    decipher(temp.clone());
+                }else {
+                    index++;
                 }
             }
         }
     }
 
     private void decipher(byte[] dest) {
-
+//        showLog("begin to decipher");
         switch (dest[0]){
             case 0x0A://设置DSP参数
                 int i =0xff&dest[1];//主频小数点左边的数值
@@ -88,6 +96,7 @@ public class PortCommandDecipher {
                 int rightTune=0xff&dest[4];
                 try {
                     double freq = NumberFormatter.getDouble(i,j,2);
+//                    showLog("freq "+freq+" left "+leftTune+" right "+rightTune);
                     mCallBack.onRequestResetDspParams(freq,leftTune,rightTune);
                 }catch (NumberFormatException e){
                     mCallBack.onInvalidDspParamsInput(e.getMessage());
@@ -106,5 +115,9 @@ public class PortCommandDecipher {
         void onRequestResetDspParams(double freq, int leftTune, int rightTune);
 
         void onInvalidDspParamsInput(String msg);
+    }
+
+    private void showLog(String msg){
+        Log.e(getClass().getSimpleName(), msg);
     }
 }

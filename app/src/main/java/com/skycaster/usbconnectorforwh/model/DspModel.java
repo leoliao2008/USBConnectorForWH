@@ -45,9 +45,9 @@ public class DspModel {
             public void run() {
 
                 if(stopReceivingData()){
-                    callBack.onProcessing("已关闭裸数据传输");
+                    callBack.onProcessing("Terminate Biz Data Transferring Success.");
                 }else {
-                    callBack.onProcessing("关闭裸数据传输失败");
+                    callBack.onProcessing("Terminate Biz Data Transferring Fails.");
                 }
                 try {
                     Thread.sleep(500);
@@ -55,9 +55,9 @@ public class DspModel {
                     e.printStackTrace();
                 }
                 if(closeDsp()){
-                    callBack.onProcessing("已关闭DSP");
+                    callBack.onProcessing("Close Dsp Successfully.");
                 }else {
-                    callBack.onProcessing("DSP关闭失败");
+                    callBack.onProcessing("Unable to Close Dsp.");
                 }
                 try {
                     Thread.sleep(500);
@@ -66,21 +66,21 @@ public class DspModel {
                 }
                 try {
                     if(openDsp(freq,leftTune,rightTune)){
-                        callBack.onProcessing("用新配置参数重启DSP成功");
+                        callBack.onSetParamsSuccess("Reset Dsp with New Params:Success! Trying to restart Biz Data Transferring...");
                         try {
                             Thread.sleep(500);
                         } catch (InterruptedException e) {
                             e.printStackTrace();
                         }
                         boolean isSuccess = startReceivingData(context, listener);
-                        callBack.onProcessing("重新启动业务数据传输...");
+                        callBack.onProcessing("Restarting Dsp Biz Data Transferring...");
                         if(isSuccess){
-                            callBack.onResetComplete();
+                            callBack.onRestartingBizServiceSuccess();
                         }else {
-                            callBack.onResetFails("无法启动业务传输，请检查DSP连接。");
+                            callBack.onRestartBizServiceFails("Cannot restart Dsp Biz Data Transferring.");
                         }
                     }else {
-                        callBack.onResetFails("DSP启动失败 配置参数：主频："+freq+" 左频："+leftTune+" 右频："+rightTune);
+                        callBack.onResetFails("Open Dsp Fails ：Freq："+freq+" Left tune："+leftTune+" Right Tune："+rightTune);
                     }
                 } catch (DSPManager.FreqOutOfRangeException e) {
                     callBack.onResetFails(e.getMessage());
@@ -91,7 +91,10 @@ public class DspModel {
 
     public interface CallBack{
         void onProcessing(String info);
-        void onResetComplete();
+        void onSetParamsSuccess(String msg);
+        void onRestartBizServiceFails(String msg);
         void onResetFails(String msg);
+        void onRestartingBizServiceSuccess();
+
     }
 }
