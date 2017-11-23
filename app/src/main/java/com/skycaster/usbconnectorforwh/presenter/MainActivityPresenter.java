@@ -13,6 +13,7 @@ import com.skycaster.skc_cdradiorx.manager.DSPManager;
 import com.skycaster.usbconnectorforwh.activity.MainActivity;
 import com.skycaster.usbconnectorforwh.data.StaticData;
 import com.skycaster.usbconnectorforwh.model.DspModel;
+import com.skycaster.usbconnectorforwh.model.DurationTestModel;
 import com.skycaster.usbconnectorforwh.model.PortCommandDecipher;
 import com.skycaster.usbconnectorforwh.model.SerialPortModel;
 import com.skycaster.usbconnectorforwh.receiver.DspConnectStatusListener;
@@ -22,7 +23,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
-import java.util.Locale;
 
 import project.SerialPort.SerialPort;
 
@@ -44,41 +44,36 @@ public class MainActivityPresenter {
     private DspConnectStatusListener.CallBack mDspConnectStatusCallBack =new DspConnectStatusListener.CallBack() {
         @Override
         public void onDspConnect() {
-            showLog("DSP Connection established!");
+            sendMsgToAllChannels("DSP Connection established!");
         }
 
         @Override
         public void onDspDisconnect() {
-            showLog("DSP Disconnected!");
+            sendMsgToAllChannels("DSP Disconnected!");
         }
     };
     private SharedPreferences mSharedPreferences;
     private BusinessDataListener mBusinessDataListener=new BusinessDataListener() {
         @Override
         public void preTask() {
-            showLog("Initializing Biz Data Transferring...");
+            sendMsgToAllChannels("Initializing Biz Data Transferring...");
         }
 
         @Override
         public void onGetBizData(final byte[] bytes) {
-            mHandler.post(new Runnable() {
-                @Override
-                public void run() {
-                    StringBuffer sb=new StringBuffer();
-                    sb.append("Biz Data:");
-                    for(byte temp:bytes){
-                        sb.append("0x");
-                        sb.append(String.format(Locale.CHINA,"%02X",temp));
-                        sb.append(" ");
-                    }
-                    showLog(sb.toString().trim());
-                }
-            });
+            //11月21日修改
+            try {
+                mOutputStream.write(bytes);
+            } catch (IOException e) {
+                sendMsgToAllChannels(e.getMessage());
+            }
+//            mDurationTestModel.decypher(bytes);
+
         }
 
         @Override
         public void onServiceStop() {
-            showLog("Biz Data Transferring Terminated.");
+            sendMsgToAllChannels("Biz Data Transferring Terminated.");
         }
     };
     private PortCommandDecipher mDecipher;
@@ -90,11 +85,12 @@ public class MainActivityPresenter {
 
         @Override
         public void onInvalidDspParamsInput(String msg) {
-            showLog("Reset Dsp Params fails ："+msg);
+            sendMsgToAllChannels("Reset Dsp Params fails ："+msg);
         }
     };
     private ArrayAdapter<String> mAdapter;
     private ArrayList<String> mLogs=new ArrayList<>();
+    private DurationTestModel mDurationTestModel;
 
 
     /*******************************************************开始运行********************************************************/
@@ -109,6 +105,13 @@ public class MainActivityPresenter {
         mHandler=new Handler(mActivity.getMainLooper());
         mDecipher =new PortCommandDecipher(mDecipherCallBack);
         mSharedPreferences=mActivity.getSharedPreferences(StaticData.SP_NAME, Context.MODE_PRIVATE);
+        //测试用
+        mDurationTestModel=new DurationTestModel(new DurationTestModel.CallBack() {
+            @Override
+            public void onGetFrameId(int id, long duration) {
+                sendMsgToAllChannels("current frame id = "+id+" duration from last call = "+duration);
+            }
+        });
 
         //初始化主页面list view
         mAdapter=new ArrayAdapter<String>(
@@ -144,9 +147,9 @@ public class MainActivityPresenter {
                     rightTune
             );
             if(isDspOpen){
-                showLog("Dsp Open Success! Freq is "+freq+" left tune is "+leftTune+" right tune is "+rightTune);
+                sendMsgToAllChannels("Dsp Open Success! Freq is "+freq+" left tune is "+leftTune+" right tune is "+rightTune);
             }else {
-                showLog("Fail to Open Dsp.");
+                sendMsgToAllChannels("Fail to Open Dsp.");
             }
             mHandler.postDelayed(new Runnable() {
                 @Override
@@ -166,16 +169,16 @@ public class MainActivityPresenter {
         editor.putInt(StaticData.DSP_LEFT_TUNE,leftTune);
         editor.putInt(StaticData.DSP_RIGHT_TUNE,rightTune);
         editor.apply();
-        showLog("new freq is "+freq+" new left tune is "+leftTune+" new right tune is "+rightTune+" , please restart your device!");
+        sendMsgToAllChannels("new freq is "+freq+" new left tune is "+leftTune+" new right tune is "+rightTune+" , please restart your device!");
 //        mDspModel.resetDsp(freq, leftTune, rightTune, mActivity, mBusinessDataListener, new DspModel.CallBack() {
 //            @Override
 //            public void onProcessing(String info) {
-//                showLog(info);
+//                sendMsgToAllChannels(info);
 //            }
 //
 //            @Override
 //            public void onSetParamsSuccess(String msg) {
-//                showLog("Reset Dsp Params Success,new freq is "+freq+" new left tune is "+leftTune+" new right tune is "+rightTune);
+//                sendMsgToAllChannels("Reset Dsp Params Success,new freq is "+freq+" new left tune is "+leftTune+" new right tune is "+rightTune);
 //                SharedPreferences.Editor editor = mSharedPreferences.edit();
 //                editor.putString(StaticData.DSP_FREQ,String.valueOf(freq));
 //                editor.putInt(StaticData.DSP_LEFT_TUNE,leftTune);
@@ -185,17 +188,17 @@ public class MainActivityPresenter {
 //
 //            @Override
 //            public void onRestartingBizServiceSuccess() {
-//                showLog("Restarting Biz Data Transferring Success! New freq is "+freq+" new left tune is "+leftTune+" new right tune is "+rightTune);
+//                sendMsgToAllChannels("Restarting Biz Data Transferring Success! New freq is "+freq+" new left tune is "+leftTune+" new right tune is "+rightTune);
 //            }
 //
 //            @Override
 //            public void onRestartBizServiceFails(String msg) {
-//                showLog("Restart Biz Data Transferring Fails. Try to restart the device, Perhaps?");
+//                sendMsgToAllChannels("Restart Biz Data Transferring Fails. Try to restart the device, Perhaps?");
 //            }
 //
 //            @Override
 //            public void onResetFails(String msg) {
-//                showLog("Reset Dsp Params fails ："+msg);
+//                sendMsgToAllChannels("Reset Dsp Params fails ："+msg);
 //            }
 //        });
     }
@@ -254,7 +257,6 @@ public class MainActivityPresenter {
     private void stopReceivingPortData(){
         if(mThread!=null){
             mThread.interrupt();
-            mThread=null;
         }
     }
 
@@ -294,10 +296,10 @@ public class MainActivityPresenter {
         if(TextUtils.isEmpty(msg)){
             msg="Exception Unknown.";
         }
-        showLog(msg);
+        sendMsgToAllChannels(msg);
     }
 
-    private void showLog(String msg){
+    private void sendMsgToAllChannels(String msg){
         Log.e(getClass().getSimpleName(),msg);
         sendMessageToSerialPort(msg.getBytes());
         updateListView(msg);

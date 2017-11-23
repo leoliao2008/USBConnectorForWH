@@ -20,7 +20,6 @@ public class MainActivity extends MyCDRadioActivity {
     @Override
     protected void initView() {
         mListView=findViewById(R.id.main_list_view);
-
     }
 
     public ListView getListView() {
